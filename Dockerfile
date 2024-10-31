@@ -1,21 +1,17 @@
-# Utiliser une image légère de base
-FROM debian:latest
+FROM python:3.11-slim
 
-# Installer les dépendances
-RUN apt-get update && apt-get install -y \
-    jq \
-    openssl \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl openssl knot-dnsutils && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Créer le répertoire de certificats
-RUN mkdir -p /certs
+WORKDIR /app
 
-# Copier le script d'extraction dans l'image
-COPY extract_certs.sh /usr/local/bin/extract_certs.sh
+COPY main.py main.py
+COPY requirements.txt requirements.txt
 
-# Donner les permissions d'exécution au script
-RUN chmod +x /usr/local/bin/extract_certs.sh
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Définir le point d'entrée
-ENTRYPOINT ["/usr/local/bin/extract_certs.sh"]
+EXPOSE 80
+
+CMD ["python", "main.py"]

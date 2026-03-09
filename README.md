@@ -25,7 +25,6 @@ services:
     image: ghcr.io/naonak/acme-dot-checker:main
     container_name: acme-dot-checker
     restart: unless-stopped
-    user: "1000:1000"
     networks:
       - traefik-net
     volumes:
@@ -36,6 +35,8 @@ services:
       - IP_ADDRESS=traefik-ip-address
       - RESOLVER=letsencrypt
       - VERBOSITY=INFO
+      - PUID=1000
+      - PGID=1000
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-net"
@@ -50,27 +51,7 @@ networks:
     external: true
 ```
 
-> **Note:** The container runs as `uid=1000` by default. Make sure the mounted volumes (`acme.json` and the certs directory) are readable/writable by this UID on the host, or adjust `user:` accordingly.
-
-### Building with a custom UID/GID
-
-If your host files are owned by a different user, you can set the UID/GID at build time:
-
-```bash
-docker build --build-arg UID=568 --build-arg GID=568 -t acme-dot-checker .
-```
-
-Or in docker-compose with a local build:
-
-```yaml
-services:
-  acme-dot-checker:
-    build:
-      context: .
-      args:
-        UID: 568
-        GID: 568
-```
+> **Note:** The container runs as `uid=1000/gid=1000` by default. Set `PUID` and `PGID` environment variables to match the owner of the mounted volumes on your host — no rebuild needed.
 
 ### Running Locally
 
@@ -93,6 +74,8 @@ python main.py
 | `CERT_DIR`        | `/app/certs`           | Output directory for `.pem` files                    |
 | `ACME_JSON_PATH`  | `/app/data/acme.json`  | Path to Traefik's `acme.json`                        |
 | `VERBOSITY`       | `INFO`                 | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`)  |
+| `PUID`            | `1000`                 | UID to run the process as                            |
+| `PGID`            | `1000`                 | GID to run the process as                            |
 
 ## API Endpoints
 

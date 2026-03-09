@@ -25,6 +25,8 @@ services:
     image: ghcr.io/naonak/acme-dot-checker:main
     container_name: acme-dot-checker
     restart: unless-stopped
+    tmpfs:
+      - /tmp
     networks:
       - traefik-net
     volumes:

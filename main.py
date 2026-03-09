@@ -27,6 +27,10 @@ IP_ADDRESS = os.getenv("IP_ADDRESS", "127.0.0.1")
 # Variable to store the current certificate hash
 cert_hash = ""
 
+# Cache for /dot-status results
+_status_cache = {"result": None, "timestamp": 0}
+STATUS_CACHE_TTL = 60  # seconds
+
 # Configure the logger
 logging.basicConfig(level=getattr(logging, VERBOSITY, logging.INFO))
 logger = logging.getLogger("CertUpdater")
@@ -61,7 +65,7 @@ def has_cert_changed(new_cert):
     return False
 
 # Update certificates
-def update_certs():
+def update_certs(retry=True):
     acme_data = read_acme_json()
     if not acme_data:
         return
@@ -95,9 +99,12 @@ def update_certs():
             else:
                 logger.info("The certificate for %s has not changed.", DOMAIN)
         else:
-            logger.warning("Missing certificate or key for %s. Attempting regeneration.", DOMAIN)
-            force_update()
-            update_certs()
+            if retry:
+                logger.warning("Missing certificate or key for %s. Attempting regeneration.", DOMAIN)
+                force_update()
+                update_certs(retry=False)
+            else:
+                logger.error("Certificate regeneration failed for %s.", DOMAIN)
     else:
         logger.error("Certificate entry not found for domain %s in acme.json.", DOMAIN)
 
@@ -150,7 +157,10 @@ def test_dot_resolution():
 # Force the certificate update
 def force_update():
     logger.info("Forcing certificate update via Traefik...")
-    subprocess.run(["curl", "-s", "-o", "/dev/null", "--resolve", f"{DOMAIN}:443:{IP_ADDRESS}", f"https://{DOMAIN}"])
+    try:
+        subprocess.run(["curl", "-s", "-o", "/dev/null", "--resolve", f"{DOMAIN}:443:{IP_ADDRESS}", f"https://{DOMAIN}"], timeout=30)
+    except subprocess.TimeoutExpired:
+        logger.error("force_update timed out.")
     logger.debug("Waiting for Traefik to update the certificate.")
     time.sleep(10)
 
@@ -181,19 +191,28 @@ def home():
 
 @app.route("/dot-status")
 def dot_status():
-    cert_ok = verify_cert()
-    dot_ok = test_dot_resolution()
+    now = time.time()
+    if _status_cache["result"] is not None and now - _status_cache["timestamp"] < STATUS_CACHE_TTL:
+        status = _status_cache["result"]
+        age = int(now - _status_cache["timestamp"])
+    else:
+        cert_ok = verify_cert()
+        dot_ok = test_dot_resolution()
+        status = {
+            "certificate_valid": cert_ok,
+            "dns_over_tls_functional": dot_ok,
+        }
+        _status_cache["result"] = status
+        _status_cache["timestamp"] = now
+        age = 0
 
-    status = {
-        "certificate_valid": cert_ok,
-        "dns_over_tls_functional": dot_ok
-#        ,"details": {
-#            "domain": DOMAIN,
-#            "ip": IP_ADDRESS,
-#            "resolver": RESOLVER
-#        }
-    }
-    return jsonify(status), 200 if cert_ok and dot_ok else 500
+    cert_ok = status["certificate_valid"]
+    dot_ok = status["dns_over_tls_functional"]
+    payload = {**status, "cached": age > 0, "retry_in": max(0, STATUS_CACHE_TTL - age)}
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = f"max-age={STATUS_CACHE_TTL}"
+    response.headers["Age"] = age
+    return response, 200 if cert_ok and dot_ok else 500
 
 # Main execution
 if __name__ == "__main__":

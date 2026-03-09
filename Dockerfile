@@ -16,7 +16,8 @@ COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 RUN mkdir -p /app/certs /app/data && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    mkdir -p /tmp && chmod 1777 /tmp
 
 USER appuser
 

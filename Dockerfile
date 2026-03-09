@@ -5,8 +5,6 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -r -g 1000 appuser && useradd -r -u 1000 -g appuser appuser
-
 WORKDIR /app
 
 COPY main.py main.py
@@ -16,7 +14,7 @@ COPY entrypoint.sh /entrypoint.sh
 
 RUN pip install --no-cache-dir -r requirements.txt && \
     mkdir -p /app/certs /app/data && \
-    chown -R appuser:appuser /app && \
+    chown -R 1000:1000 /app && \
     mkdir -p /tmp && chmod 1777 /tmp && \
     chmod +x /entrypoint.sh
 

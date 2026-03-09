@@ -4,8 +4,6 @@ set -e
 PUID=${PUID:-1000}
 PGID=${PGID:-1000}
 
-groupmod -o -g "$PGID" appuser
-usermod -o -u "$PUID" appuser
-chown -R appuser:appuser /app
+chown -R ${PUID}:${PGID} /app
 
-exec gosu appuser "$@"
+exec gosu ${PUID}:${PGID} "$@"

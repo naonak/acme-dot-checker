@@ -50,7 +50,27 @@ networks:
     external: true
 ```
 
-> **Note:** The container runs as `uid=1000`. Make sure the mounted volumes (`acme.json` and the certs directory) are readable/writable by this UID on the host, or adjust `user:` accordingly.
+> **Note:** The container runs as `uid=1000` by default. Make sure the mounted volumes (`acme.json` and the certs directory) are readable/writable by this UID on the host, or adjust `user:` accordingly.
+
+### Building with a custom UID/GID
+
+If your host files are owned by a different user, you can set the UID/GID at build time:
+
+```bash
+docker build --build-arg UID=568 --build-arg GID=568 -t acme-dot-checker .
+```
+
+Or in docker-compose with a local build:
+
+```yaml
+services:
+  acme-dot-checker:
+    build:
+      context: .
+      args:
+        UID: 568
+        GID: 568
+```
 
 ### Running Locally
 

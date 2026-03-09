@@ -5,7 +5,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -r -g 1000 appuser && useradd -r -u 1000 -g appuser appuser
+ARG UID=1000
+ARG GID=1000
+RUN groupadd -r -g ${GID} appuser && useradd -r -u ${UID} -g appuser appuser
 
 WORKDIR /app
 
